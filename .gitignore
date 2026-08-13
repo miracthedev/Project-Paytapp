@@ -1,0 +1,6 @@
+# BACKEND
+*.db
+.env
+
+# FRONTEND
+.env.local
