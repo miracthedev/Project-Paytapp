@@ -7,6 +7,11 @@ if TYPE_CHECKING:
 
 class OrderItemBase(SQLModel):
     ticket_id: int = Field(foreign_key="ticket.id")
+    
+    # 1. The Relationship (Optional, in case the product is deleted from the menu later)
+    product_id: Optional[int] = Field(default=None, foreign_key="product.id")
+    
+    # 2. The Snapshot (Historical record that NEVER changes)
     product_name: str 
     price: float
     

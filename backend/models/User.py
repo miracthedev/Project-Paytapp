@@ -1,10 +1,12 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 from enum import StrEnum, auto
 
+
 if TYPE_CHECKING:
-    from backend.models.Restaurant import Restaurant
+    from models.Ticket import Ticket
+    from models.Restaurant import Restaurant
 
 class UserRoles(StrEnum):
     ADMIN = auto()
@@ -24,6 +26,7 @@ class User(UserBase, table=True):
     hashed_password: str
     
     restaurant: Optional["Restaurant"] = Relationship(back_populates="staff")
+    tickets: List[Optional["Ticket"]] = Relationship(back_populates="responsible_waiter") #adminler de waiter olabilir
 
 # 3. Girdi Modeli (Post/Create): Müşteriden (Frontend'den) beklediğimiz veri
 class UserPost(UserBase):

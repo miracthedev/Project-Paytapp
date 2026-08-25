@@ -6,7 +6,7 @@ from auth import require_role
 from models.User import UserRoles
 
 # Tüm yeni şemaları import ediyoruz
-from models.Ticket import Ticket, TicketPost, TicketPatch, TicketPublic 
+from models.Ticket import Ticket, TicketPost, TicketPatch, TicketPublic, TicketPublicWithItems 
 
 router = APIRouter(
     prefix="/tickets",
@@ -75,3 +75,11 @@ def delete_ticket(ticket_id: int, session: SessionDep):
     session.commit()
     
     return None
+
+@router.get("/{ticket_id}", response_model=TicketPublicWithItems)
+def get_ticket_with_items(ticket_id: int, session: SessionDep):
+    db_ticket = session.get(Ticket, ticket_id)
+    if not db_ticket:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found!")
+
+    return db_ticket

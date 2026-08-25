@@ -19,14 +19,14 @@ from models.User import User, UserRoles
 if TYPE_CHECKING:
     pass
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 password_hash = PasswordHash((Argon2Hasher(),))
 
 load_dotenv()
 
 # .env dosyası bulunamazsa çökmemesi için geçici bir string ekledik
-SECRET_KEY = os.getenv("SECRET_KEY_FOR_TOKEN", "super-secret-dev-key")
+SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-dev-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

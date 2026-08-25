@@ -11,6 +11,8 @@ from models.Table import Table, TableRegion, TableType
 from models.Restaurant import Restaurant
 
 
+
+
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url, echo=True)
@@ -75,56 +77,85 @@ def create_order_item(engine: Engine):
         existing_item = session.get(OrderItem, 1)
         
         if not existing_item:
+            now = datetime.now(timezone.utc)
+            
             order_items: list[OrderItem] = [
-                # ---------------------------------------------------------
-                # TICKET 1 (Masa 1) - Standart Senaryo
-                # Henüz hiçbir işlem yapılmamış, yeni sipariş edilmiş ürünler
-                # ---------------------------------------------------------
+                # ==========================================
+                # NORMAL DURUMLAR (TICKET 1 - Masa 1)
+                # ==========================================
+                
+                # 1. Tamamen Boş / Kilitlenmemiş
                 OrderItem(
                     ticket_id=1, 
+                    product_id=1,
                     product_name="Los Pollos Burger", 
-                    price=250.0
+                    price=250.0,
+                    is_paid=False,
+                    locked_by_session=None,
+                    locked_until=None
                 ),
+                
+                # 2. Şu an Kilitli (Standart Senaryo)
                 OrderItem(
                     ticket_id=1, 
+                    product_id=3,
                     product_name="Patates Kızartması", 
-                    price=80.0
+                    price=80.0,
+                    is_paid=False,
+                    locked_by_session="session_user_A",
+                    locked_until=now + timedelta(minutes=3) 
                 ),
+                
+                # 3. Zaten Ödenmiş
                 OrderItem(
                     ticket_id=1, 
+                    product_id=4,
                     product_name="Kola", 
-                    price=50.0
+                    price=50.0,
+                    is_paid=True,
+                    paid_by_session="session_user_B",
+                    locked_by_session=None,
+                    locked_until=None
                 ),
 
-                # ---------------------------------------------------------
-                # TICKET 2 (Masa 2) - Alman Usulü ve Kilit (Soft Lock) Senaryoları
-                # ---------------------------------------------------------
+                # ==========================================
+                # UÇ DURUMLAR (EDGE CASES) (TICKET 2 - Masa 2)
+                # ==========================================
                 
-                # Senaryo A: Başarıyla ÖDENMİŞ bir ürün
+                # 4. Süresi Dolmuş Kilit (Terk Edilmiş Sepet)
+                # Backend'in bu ürünün kilidini başkasının almasına izin vermeli.
                 OrderItem(
                     ticket_id=2, 
-                    product_name="Çıtır Tavuk Kovası", 
-                    price=350.0, 
-                    is_paid=True, 
-                    paid_by_session="session_xyz_123" # Bu ürünü ödeyen kişinin anonim ID'si
-                ),
-                
-                # Senaryo B: Şu an başka bir müşterinin ekranında KİLİTLİ olan ürün
-                # (Müşteri "Öde"ye basmış, Iyzico ekranında kart bilgilerini giriyor)
-                OrderItem(
-                    ticket_id=2, 
+                    product_id=5,
                     product_name="Kıymalı Çibörek", 
                     price=120.0,
-                    locked_by_session="session_abc_987", # Kilitleyen kişinin ID'si
-                    # Şu andan itibaren 3 dakika boyunca başkası bu ürünü seçemez
-                    locked_until=datetime.now(timezone.utc) + timedelta(minutes=3) 
+                    is_paid=False,
+                    locked_by_session="session_user_C",
+                    locked_until=now - timedelta(minutes=10) 
                 ),
                 
-                # Senaryo C: Aynı masada duran ama henüz kimsenin ödemediği/kilitlemediği ürün
+                # 5. Eksik Veri: Gelecek tarih var ama Session ID yok!
+                # Backend bunu tamamen "kilitsiz" kabul etmeli.
                 OrderItem(
                     ticket_id=2, 
+                    product_id=6,
                     product_name="Ayran", 
-                    price=40.0
+                    price=40.0,
+                    is_paid=False,
+                    locked_by_session=None,
+                    locked_until=now + timedelta(minutes=5)
+                ),
+
+                # 6. Eksik Veri: Session ID var ama Tarih yok!
+                # Backend geçersiz kilit sayıp başkasına devredebilmeli.
+                OrderItem(
+                    ticket_id=2,
+                    product_id=6,
+                    product_name="Ekstra Ayran", 
+                    price=40.0,
+                    is_paid=False,
+                    locked_by_session="session_user_E",
+                    locked_until=None
                 )
             ]
             
@@ -152,6 +183,8 @@ def create_products(engine: Engine):
             print("Products created.")
 
 def create_users(engine: Engine):
+    from auth import get_password_hash
+
     with Session(engine) as session:
         # Veritabanında ilk kullanıcı var mı diye kontrol edelim
         existing_user = session.get(User, 1)
@@ -160,17 +193,19 @@ def create_users(engine: Engine):
             users: list[User] = [
                 # Los Pollos Hermanos (restaurant_id=1)
                 User(
-                    restaurant_id=1, 
+                    restaurant_id=1,
                     email="gustavo@lospollos.com", 
                     username="gfring", 
-                    hashed_password="hashed_secret_password_1", 
+                    # Düz şifreyi (örneğin "admin123") anında hashliyoruz
+                    hashed_password=get_password_hash("admin123"), 
                     role=UserRoles.ADMIN
                 ),
                 User(
                     restaurant_id=1, 
                     email="jesse@lospollos.com", 
                     username="jpinkman", 
-                    hashed_password="hashed_secret_password_2", 
+                    # Düz şifre: "jesse123"
+                    hashed_password=get_password_hash("jesse123"), 
                     role=UserRoles.WAITER
                 ),
                 
@@ -179,7 +214,8 @@ def create_users(engine: Engine):
                     restaurant_id=2, 
                     email="admin@gubate.com", 
                     username="gubate_yonetim", 
-                    hashed_password="hashed_secret_password_3", 
+                    # Düz şifre: "gubate123"
+                    hashed_password=get_password_hash("gubate123"), 
                     role=UserRoles.ADMIN
                 ),
                 
@@ -188,7 +224,8 @@ def create_users(engine: Engine):
                     restaurant_id=3, 
                     email="waiter@therestaurant.com", 
                     username="cool_waiter", 
-                    hashed_password="hashed_secret_password_4", 
+                    # Düz şifre: "waiter123"
+                    hashed_password=get_password_hash("waiter123"), 
                     role=UserRoles.WAITER
                 )
             ]

@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from backend.models.Restaurant import Restaurant
     from backend.models.Ticket import Ticket
 
+# ENUMS
 class TableRegion(StrEnum):
     MAIN = auto()
     TERRACE = auto()
@@ -15,6 +16,8 @@ class TableType(StrEnum):
     DINING_SHORT = auto()
     STOOL = auto()
 
+
+# TABLE CLASSES
 class TableBase(SQLModel):
     restaurant_id: int = Field(foreign_key="restaurant.id")
     table_name: str
@@ -28,8 +31,9 @@ class Table(TableBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     
     restaurant: Optional["Restaurant"] = Relationship(back_populates="tables")
-    tickets: List["Ticket"] = Relationship(back_populates="dining_table")
+    tickets: List["Ticket"] = Relationship(back_populates="table")
 
+#TODO: add functionality
 class TablePost(TableBase):
     pass
 

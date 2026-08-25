@@ -8,13 +8,15 @@ from models.User import UserRoles
 # UserPatch şemasını models/User.py içine (tüm alanları Optional olarak) eklediğinizi varsayıyoruz
 from models.User import User, UserPost, UserPatch, UserPublic
 
+SessionDep = Annotated[Session, Depends(get_session)]
+adminDep = Annotated[UserRoles, Depends(require_role(UserRoles.ADMIN))]
+
 router = APIRouter(
     prefix="/users",
     tags=["User"],
     dependencies=[Depends(require_role(UserRoles.ADMIN))]
 )
 
-SessionDep = Annotated[Session, Depends(get_session)]
 
 @router.get("/", response_model=List[UserPublic])
 def get_all_users(session: SessionDep):

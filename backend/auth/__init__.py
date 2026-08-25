@@ -1,6 +1,5 @@
 # auth/__init__.py
 
-# .auth (yani aynı klasördeki auth.py dosyası) içindeki fonksiyonları içe aktarıyoruz
 from .auth import (
     create_access_token,
     get_current_user,
@@ -8,13 +7,14 @@ from .auth import (
     require_role,
     verify_password,
 )
+from .cors import CORS_func
 
-# Dışarıdan "from auth import *" yapıldığında nelerin erişilebilir 
-# olacağını açıkça belirtmek (Best Practice)
+# Dışarıdan "from auth import *" yapıldığında erişilebilecek fonksiyonlar listesine CORS_func'ı da ekledik
 __all__ = [
     "create_access_token",
     "get_current_user",
     "get_password_hash",
     "require_role",
     "verify_password",
+    "CORS_func",
 ]
