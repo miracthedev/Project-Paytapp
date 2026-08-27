@@ -1,6 +1,7 @@
-import React from "react";
 
-const FASTAPI_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+const FASTAPI_API_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL;
+const NEXT_API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default async function EndpointTestPage({
     params,

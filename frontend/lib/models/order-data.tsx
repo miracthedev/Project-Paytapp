@@ -1,80 +1,84 @@
+// 1. Backend'deki OrderItemPublic modeli ile BİREBİR aynı tip
 export type OrderItem = {
-    id: string;
-    name: string;
-    note?: string;
+    id: number;
+    ticket_id: number;
+    product_id: number | null;
+    sh_product_name: string;
+    sh_price_singular: number;
+    sh_price_total: number;
+    note?: string | null;
     quantity: number;
-    price: number;
-    image: string;
-    paid: boolean;
-    shared?: boolean;
+    image_url?: string | null;
+    is_paid: boolean;
+    paid_by_session?: string | null;
+    paid_by_name?: string | null;
+    locked_by_session?: string | null;
+    locked_by_name?: string | null;
+    locked_until?: string | null; // Tarihler JSON'da string (ISO format) olarak gelir
+    added_at: string;
 };
 
 export const RESTAURANT_NAME = "Meydan Ocakbaşı";
 export const TABLE_LABEL = "Masa 5";
 
+// 2. Mock verilerimizi yeni API standartlarına göre güncelledik
 export const ORDER_ITEMS: OrderItem[] = [
     {
-        id: "1", // TEST 1: Veritabanında boş. Tıkladığında BAŞARIYLA KİLİTLENMELİ.
-        name: "Folk Valley Kebabı",
+        id: 1,
+        ticket_id: 1,
+        product_id: 101,
+        sh_product_name: "Folk Valley Kebabı",
         note: "incl. w/Ekber Dayi",
         quantity: 2,
-        price: 32,
-        image: "assets/folk_cat.jpg",
-        paid: false,
-        shared: true
+        sh_price_singular: 32,
+        sh_price_total: 2 * 32,
+        image_url: "assets/folk_cat.jpg",
+        is_paid: false,
+        added_at: new Date().toISOString(),
     },
     {
-        id: "2", // TEST 2: Veritabanında User A tarafından KİLİTLİ. Tıkladığında 409 HATASI VERMELİ ve başkası ödüyor demeli.
-        name: "Karışık Meze Tabağı",
+        id: 2,
+        ticket_id: 1,
+        product_id: 102,
+        sh_product_name: "Karışık Meze Tabağı",
         note: "Masaya ortak geldi",
         quantity: 1,
-        price: 420,
-        image: "/assets/meze.jpg",
-        paid: false,
-        shared: true,
+        sh_price_singular: 420,
+        sh_price_total: 1 * 420,
+        image_url: "/assets/meze.jpg",
+        is_paid: false,
+        // TEST: Bu ürün başkası tarafından kilitlenmiş gibi gösterelim
+        locked_by_session: "fake-session-uuid",
+        locked_by_name: "Müşteri 42",
+        locked_until: new Date(Date.now() + 3 * 60000).toISOString(),
+        added_at: new Date().toISOString(),
     },
     {
-        id: "4", // TEST 3: Veritabanında kilit süresi DOLMUŞ (Terk edilmiş). Tıkladığında KİLİDİ ÇALABİLMELİSİN.
-        name: "Adana Kebap",
+        id: 4,
+        ticket_id: 1,
+        product_id: 104,
+        sh_product_name: "Adana Kebap",
         quantity: 2,
-        price: 960,
-        image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&q=80",
-        paid: false,
+        sh_price_singular: 960,
+        sh_price_total: 2 * 960,
+        image_url: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&q=80",
+        is_paid: false,
+        added_at: new Date().toISOString(),
     },
     {
-        id: "5", // TEST 4: Veritabanında hatalı kilit var. Tıkladığında BAŞARIYLA KİLİTLENMELİ.
-        name: "Çoban Salata",
-        note: "Masaya ortak geldi",
+        id: 6, // "baklava" string'i yerine int ID verdik
+        ticket_id: 1,
+        product_id: 106,
+        sh_product_name: "Fıstıklı Baklava",
         quantity: 1,
-        price: 180,
-        image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&q=80",
-        paid: false,
-        shared: true,
-    },
-    {
-        id: "99", // TEST 5: Veritabanında BÖYLE BİR ID YOK. Tıkladığında 404 SİSTEMSEL HATA vermeli.
-        name: "Ayran",
-        quantity: 3,
-        price: 135,
-        image: "https://images.unsplash.com/photo-1628543100650-70f90e53a258?w=500&q=80",
-        paid: false,
-    },
-    {
-        id: "baklava", // Sadece string bırakalım, backend 422 Unprocessable Entity hatası versin görelim.
-        name: "Fıstıklı Baklava",
-        quantity: 1,
-        price: 260,
-        image: "https://images.unsplash.com/photo-1519676867240-f03562e64548?w=500&q=80",
-        paid: true,
-    },
-    {
-        id: "kahve",
-        name: "Türk Kahvesi",
-        quantity: 2,
-        price: 170,
-        image: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&q=80",
-        paid: true,
-    },
+        sh_price_singular: 260,
+        sh_price_total: 1 * 260,
+        image_url: "https://images.unsplash.com/photo-1519676867240-f03562e64548?w=500&q=80",
+        is_paid: true,
+        paid_by_session: "another-fake-uuid",
+        paid_by_name: "Ahmet",
+        added_at: new Date().toISOString(),
+    }
 ];
 
 export function formatTL(value: number) {

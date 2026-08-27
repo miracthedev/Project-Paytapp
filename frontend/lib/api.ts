@@ -1,7 +1,13 @@
-import { Restaurant } from "./models/restaurant";
 
+// TODO
 const NEXT_API_URL = process.env.NEXT_PUBLIC_API_URL;
-const FASTAPI_API_URL = process.env.FASTAPI_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const NEXT_API_FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL || "http://127.0.0.1:8000";
+// const NEXT_API_FASTAPI_URL = "http://127.0.0.1:8000";
+
+
+
+
+
 
 export async function loginUser(email: string, password: string) {
     // 1. Format the payload as x-www-form-urlencoded
@@ -10,7 +16,7 @@ export async function loginUser(email: string, password: string) {
     formData.append("password", password);
 
     // 2. Send the POST request to your /login route
-    const response = await fetch(`${FASTAPI_API_URL}/login`, {
+    const response = await fetch(`${NEXT_API_FASTAPI_URL}/login`, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -30,6 +36,10 @@ export async function loginUser(email: string, password: string) {
 
     // 3. Parse and return the JSON response
     return data;
+}
+
+export async function fetchOrderItems() {
+
 }
 
 export async function fetchRestaurants(token?: string) {
@@ -54,25 +64,49 @@ export async function fetchRestaurants(token?: string) {
     return response.json();
 }
 
+/*
+Hereby, this function shall have 3 input, where itemId, seeeeshionId and lock
+
+# lockedUntil
+if lock -> true, returns a countdown of 3 mins for lock,
+   lock -> false, returns null
+
+# lockedBy
+if lock -> true, returns sessionId, which basicall means showing which user locked this
+   lock -> false, returns null
+
+## These variables set to  null if not locked, because it means asking for unlocking this item.
 
 
+
+*/
 export async function toggleItemLock(itemId: string | number, sessionId: string, lock: boolean) {
-    const lockedUntil = lock ? new Date(Date.now() + 3 * 60000).toISOString() : null;
+    const lockedUntil = lock ? new Date(Date.now() + 3 * 60000).toISOString() : null; //3 mins lock!
     const lockedBy = lock ? sessionId : null;
+
+    // # token
+    // if typeof window is undefined, this means Next.js is on SSR right now, accessing the window results in a crash.
+    // so it accesses the token IF AND ONLY IF SSR finished and window is accessible.
 
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-    // Header'ları dinamik yapıyoruz
+    // Initializing a Record (dictionary) with an value,
+    // p.s. KEYS of a Record can only have these types "number", "string", "symbol"
+    // VALUES can have any type.
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
     };
+
 
     // Eğer kullanıcı giriş yapmışsa (Garson/Admin) token ekle
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${FASTAPI_API_URL}/order-items/${itemId}`, {
+
+    // This snippet will update lock status of specified order item, with "PATCH" method.
+    // May or may not include auth, depending on who made the request (user/admin or guest)
+    const response = await fetch(`${NEXT_API_FASTAPI_URL}/order-items/${itemId}`, {
         method: "PATCH",
         headers: headers,
         body: JSON.stringify({
@@ -81,14 +115,17 @@ export async function toggleItemLock(itemId: string | number, sessionId: string,
         }),
     });
 
+
+    // catcher for errors
     if (!response.ok) {
         const errorData = await response.text();
         console.error(`API Hatası (Status ${response.status}):`, errorData);
 
+        // raises "409 CONFLICT" Exception
         if (response.status === 409) {
             throw new Error("Conflict: Item already locked by someone else.");
         } else {
-            throw new Error(`Sistemsel Hata: ${response.status}`);
+            throw new Error(`SYSTEM ERR: ${response.status}`);
         }
     }
 

@@ -4,46 +4,51 @@ import { UtensilsCrossed, Lock } from "lucide-react";
 import { OrderItemCard } from "@/components/order/OrderItemCard";
 import { PaymentSheet } from "@/components/order/PaymentSheet";
 import { SuccessScreen } from "@/components/order/SuccessScreen";
-import { formatTL, ORDER_ITEMS, RESTAURANT_NAME, TABLE_LABEL, OrderItem } from "@/lib/models/order-data";
+import { formatTL, RESTAURANT_NAME, TABLE_LABEL, OrderItem } from "@/lib/models/order-data";
 import { toggleItemLock } from "@/lib/api";
 
-// Yardımcı Fonksiyon: Başka bir kullanıcının kilitlediği ürünler için rastgele renk ve isim üretir
-const generateRandomUser = () => {
-  const hue = Math.floor(Math.random() * 360);
-  const userNumber = Math.floor(Math.random() * 99) + 1;
+
+
+
+
+const NEXT_PUBLIC_FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL;
+
+
+
+
+// YENİ: İsimden sabit bir renk (hue) üreten fonksiyon.
+// Böylece her polling'de (5 sn) renkler yanıp sönmez, aynı kişiye hep aynı renk gelir.
+const getUserStyle = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 360);
   return {
-    username: `Müşteri ${userNumber}`,
-    bg: `hsl(${hue}, 80%, 96%)`,      // Açık pastel arkaplan
-    border: `hsl(${hue}, 60%, 50%)`,  // Belirgin kenarlık ve badge rengi
+    bg: `hsl(${hue}, 80%, 96%)`,
+    border: `hsl(${hue}, 60%, 50%)`,
   };
 };
 
 export default function BillPage() {
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [splits, setSplits] = useState<Record<string, number>>({});
-  const [customs, setCustoms] = useState<Record<string, number | null>>({});
-  const [locked, setLocked] = useState<Record<string, boolean>>({}); // Oyunlardan gelen kilitler
+  const [selected, setSelected] = useState<Record<number, boolean>>({});
+  const [splits, setSplits] = useState<Record<number, number>>({});
+  const [customs, setCustoms] = useState<Record<number, number | null>>({});
+  const [locked, setLocked] = useState<Record<number, boolean>>({});
+
+  // Sadece API'den 409 hatası döndüğünde anlık gösterim için kullanılacak
+  const [lockedByOthersLocal, setLockedByOthersLocal] = useState<Record<number, string>>({});
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
-
-  // YENİ: Masadaki "BAŞKA" biri tarafından seçilmiş (kilitlenmiş) ürünlerin state'i
-  const [lockedByOthers, setLockedByOthers] = useState<Record<string, { username: string, bg: string, border: string }>>({});
-
   const [sessionId, setSessionId] = useState<string>("");
   const [isMounted, setIsMounted] = useState(false);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  //////////////////////////////////////////////////////////////////////////
-  // first: checks if we have session_id, cuz user may refreshed the page.
-  // second: if we do not have session_id:
-  //        - if -> crypto is available to use, uses it, mostly on HTTPS
-  //        - else -> fallbacks to manually creating UUID, like HTTP
-  // then sets the session_id for sessionStorage, ensuring even in refresh the session will not be deleted,
-  // but in closing of page IT WILL BE DELETED.
-  //
-  // finally: we set or session_id for our codebase as well and set isMounted -> true.
   useEffect(() => {
+    // 1. Session ID Mantığı
     let currentSessionId = sessionStorage.getItem("table_session_id");
-
     if (!currentSessionId) {
       if (typeof crypto !== "undefined" && crypto.randomUUID) {
         currentSessionId = crypto.randomUUID();
@@ -54,59 +59,78 @@ export default function BillPage() {
       }
       sessionStorage.setItem("table_session_id", currentSessionId);
     }
-
     setSessionId(currentSessionId);
     setIsMounted(true);
 
-    // DEMO: Arayüzü test edebilmeniz için sayfa yüklendiğinde rastgele bir ürünü başkası seçmiş gibi gösterelim
-    // TODO: Prodda burayi sil!!!!
-    setLockedByOthers({
-      "salata": generateRandomUser()
-    });
+    // 2. FastAPI'den Veri Çekme Fonksiyonu
+    const fetchItems = async () => {
+      try {
+        console.log("Şu an buraya istek atılıyor:", `${NEXT_PUBLIC_FASTAPI_URL}/order-items/`); // Bize gerçeği söyleyecek satır
+
+        const response = await fetch(`${NEXT_PUBLIC_FASTAPI_URL}/order-items/`);
+        if (!response.ok) throw new Error("Veri çekilemedi");
+
+        const data = await response.json();
+        setOrderItems(data);
+      } catch (error) {
+        console.error("API Hatası:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchItems();
+    const interval = setInterval(fetchItems, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-
-  /* 
-  This async function receives 2 prop: itemId and isCurrentlySelected,
-  first: checks if user 
-  
-  */
-  async function handleToggleLock(itemId: string, isCurrentlySelected: boolean) {
+  async function handleToggleLock(itemId: number, isCurrentlySelected: boolean) {
     const isAttemptingToLock = !isCurrentlySelected;
 
     try {
-      // 1. API'ye kilitleme isteği at
-      await toggleItemLock(itemId, sessionId, isAttemptingToLock);
-
-      // 2. Başarılı olursa bizim ekranımızda "Seçili" (Yeşil) hale getir
+      await toggleItemLock(String(itemId), sessionId, isAttemptingToLock);
       setSelected((prev) => ({ ...prev, [itemId]: isAttemptingToLock }));
 
+      // Eğer başarılı kilitleme yaptıysak, lokal hata state'inden çıkar
+      setLockedByOthersLocal((prev) => {
+        const copy = { ...prev };
+        delete copy[itemId];
+        return copy;
+      });
     } catch (error) {
-      // 3. API hata verirse (Başka biri bizden önce tıkladıysa):
       console.error("Lock failed:", error);
-
-      // Ürünü o kullanıcının rengi ve ismiyle kilitle
-      setLockedByOthers((prev) => ({
+      // İyimser Kilit Hatası: Bizden önce başkası kapmış
+      setLockedByOthersLocal((prev) => ({
         ...prev,
-        [itemId]: generateRandomUser()
+        [itemId]: "Başka Müşteri"
       }));
-
       alert("Bu ürün şu anda masadaki başka biri tarafından ödeniyor.");
     }
   }
 
-  const shareOf = (id: string, price: number) => customs[id] ?? price / (splits[id] ?? 1);
+  const shareOf = (id: number, price: number) => customs[id] ?? price / (splits[id] ?? 1);
 
-  const tableTotal = useMemo(() => ORDER_ITEMS.reduce((sum, item) => sum + item.price, 0), []);
+  const tableTotal = useMemo(() =>
+    orderItems.reduce((sum, item) => sum + item.sh_price_total, 0),
+    [orderItems]);
 
-  const selectedTotal = useMemo(
-    () =>
-      // Hesaplamaya başkasının kilitlediği (lockedByOthers) ürünleri dahil ETME
-      ORDER_ITEMS.filter((item) => !item.paid && !locked[item.id] && !lockedByOthers[item.id] && selected[item.id]).reduce(
-        (sum, item) => sum + (customs[item.id] ?? item.price / (splits[item.id] ?? 1)),
-        0
-      ),
-    [selected, splits, customs, locked, lockedByOthers]
+  const selectedTotal = useMemo(() =>
+    orderItems.filter((item) => {
+      if (item.is_paid || locked[item.id]) return false;
+
+      // API'den veya lokalden başkası tarafından kilitlenmiş mi?
+      const lockedByAPI = item.locked_by_session && item.locked_by_session !== sessionId;
+      const lockedByLocal = Boolean(lockedByOthersLocal[item.id]);
+
+      if (lockedByAPI || lockedByLocal) return false;
+
+      // Kullanıcı manuel seçmişse VEYA API'de bizim session'ımızda kilitliyse
+      return selected[item.id] || item.locked_by_session === sessionId;
+    }).reduce(
+      (sum, item) => sum + (customs[item.id] ?? item.sh_price_singular / (splits[item.id] ?? 1)),
+      0
+    ),
+    [orderItems, selected, splits, customs, locked, lockedByOthersLocal, sessionId]
   );
 
   if (!isMounted) {
@@ -128,7 +152,6 @@ export default function BillPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-md pb-48">
-        {/* Header */}
         <header className="sticky top-0 z-20 bg-primary px-5 py-4 text-primary-foreground shadow-md">
           <div className="flex items-center gap-3">
             <div className="flex size-12 items-center justify-center rounded-xl bg-primary-foreground/15">
@@ -144,7 +167,6 @@ export default function BillPage() {
           </div>
         </header>
 
-        {/* Liste */}
         <main className="px-5 pt-6">
           <h1 className="text-3xl font-extrabold leading-tight text-foreground">Siparişler & Hesap</h1>
           <p className="mt-1 text-base text-muted-foreground">
@@ -152,61 +174,72 @@ export default function BillPage() {
           </p>
 
           <div className="mt-6 space-y-4">
-            {ORDER_ITEMS.map((item) => {
-              // Bu ürünü masadaki BAŞKA biri seçmiş mi kontrol et
-              const otherUser = lockedByOthers[item.id];
-              const isLockedByOther = Boolean(otherUser);
+            {isLoading && orderItems.length === 0 ? (
+              <div className="py-10 text-center text-muted-foreground">Siparişler yükleniyor...</div>
+            ) : (
+              orderItems.map((item) => {
+                // Başkası kilitlemiş mi kontrolü (API veya Lokal Hata)
+                const lockedByAPI = item.locked_by_session && item.locked_by_session !== sessionId;
+                const lockedByLocal = Boolean(lockedByOthersLocal[item.id]);
+                const isLockedByOther = lockedByAPI || lockedByLocal;
 
-              return (
-                <div
-                  key={item.id}
-                  className="relative rounded-2xl transition-all duration-300 overflow-hidden"
-                  // Eğer başkası seçtiyse onun arka plan ve kenarlık rengini uygula
-                  style={isLockedByOther ? { backgroundColor: otherUser.bg, border: `2px solid ${otherUser.border}` } : { border: '2px solid transparent' }}
-                >
-                  {/* Başkası seçtiyse sağ üstte çıkacak ufak İsim Etiketi */}
-                  {isLockedByOther && (
-                    <div
-                      className="absolute top-0 right-0 px-3 py-1 text-xs font-bold text-white rounded-bl-xl z-10 flex items-center gap-1 shadow-sm"
-                      style={{ backgroundColor: otherUser.border }}
-                    >
-                      <Lock size={12} />
-                      {otherUser.username} ödüyor
+                // Kilitleyen kişinin ismini ve sabit rengini al
+                const lockerName = lockedByAPI
+                  ? (item.locked_by_name || "Başka Müşteri")
+                  : (lockedByLocal ? lockedByOthersLocal[item.id] : "");
+
+                const userStyle = isLockedByOther ? getUserStyle(lockerName) : null;
+
+                // Biz mi seçtik? (Manuel tık VEYA API'de bize ait bir kilit varsa)
+                const isSelectedByMe = Boolean(selected[item.id]) || item.locked_by_session === sessionId;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="relative rounded-2xl transition-all duration-300 overflow-hidden"
+                    style={isLockedByOther && userStyle ? { backgroundColor: userStyle.bg, border: `2px solid ${userStyle.border}` } : { border: '2px solid transparent' }}
+                  >
+                    {isLockedByOther && userStyle && (
+                      <div
+                        className="absolute top-0 right-0 px-3 py-1 text-xs font-bold text-white rounded-bl-xl z-10 flex items-center gap-1 shadow-sm"
+                        style={{ backgroundColor: userStyle.border }}
+                      >
+                        <Lock size={12} />
+                        {lockerName} ödüyor
+                      </div>
+                    )}
+
+                    <div className={isLockedByOther ? "opacity-50 pointer-events-none grayscale-[0.2]" : ""}>
+                      <OrderItemCard
+                        item={item}
+                        selected={isSelectedByMe} // Otomatik senkronizasyon uygulandı
+                        split={splits[item.id] ?? 1}
+                        customAmount={customs[item.id] ?? null}
+                        share={shareOf(item.id, item.sh_price_singular)}
+                        lockedAway={isLockedByOther || Boolean(locked[item.id])}
+                        onToggle={() => handleToggleLock(item.id, isSelectedByMe)}
+                        onSplitChange={(value) => setSplits((prev) => ({ ...prev, [item.id]: value }))}
+                        onCustomChange={(value) => setCustoms((prev) => ({ ...prev, [item.id]: value }))}
+                        onWinDice={() => {
+                          setCustoms((prev) => ({ ...prev, [item.id]: null }));
+                          setSplits((prev) => ({ ...prev, [item.id]: 1 }));
+                          setSelected((prev) => ({ ...prev, [item.id]: true }));
+                        }}
+                        onWinCoin={() => {
+                          setSelected((prev) => ({ ...prev, [item.id]: false }));
+                          setLocked((prev) => ({ ...prev, [item.id]: true }));
+                        }}
+                        onUnlock={() => setLocked((prev) => ({ ...prev, [item.id]: false }))}
+                      />
                     </div>
-                  )}
-
-                  {/* Eğer başkası seçtiyse karta tıklanmayı engelle ve rengini hafif soldur */}
-                  <div className={isLockedByOther ? "opacity-50 pointer-events-none grayscale-[0.2]" : ""}>
-                    <OrderItemCard
-                      item={item}
-                      selected={Boolean(selected[item.id])}
-                      split={splits[item.id] ?? 1}
-                      customAmount={customs[item.id] ?? null}
-                      share={shareOf(item.id, item.price)}
-                      lockedAway={isLockedByOther || Boolean(locked[item.id])}
-                      onToggle={() => handleToggleLock(item.id, Boolean(selected[item.id]))}
-                      onSplitChange={(value) => setSplits((prev) => ({ ...prev, [item.id]: value }))}
-                      onCustomChange={(value) => setCustoms((prev) => ({ ...prev, [item.id]: value }))}
-                      onWinDice={() => {
-                        setCustoms((prev) => ({ ...prev, [item.id]: null }));
-                        setSplits((prev) => ({ ...prev, [item.id]: 1 }));
-                        setSelected((prev) => ({ ...prev, [item.id]: true }));
-                      }}
-                      onWinCoin={() => {
-                        setSelected((prev) => ({ ...prev, [item.id]: false }));
-                        setLocked((prev) => ({ ...prev, [item.id]: true }));
-                      }}
-                      onUnlock={() => setLocked((prev) => ({ ...prev, [item.id]: false }))}
-                    />
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </main>
       </div>
 
-      {/* Sticky Bottom Bar */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-border bg-card shadow-[0_-8px_24px_rgba(0,0,0,0.08)]">
         <div className="mx-auto max-w-md px-5 py-4">
           <div className="flex items-end justify-between gap-4">

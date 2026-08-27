@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 from auth.cors import CORS_func
 from auth import get_password_hash, create_access_token, verify_password
 
+from TOOLs.assetsLinkCreator import create_asset_links
 from models.User import Token, User, UserPost, UserPublic
 from sql import start_db, get_session, create_dummy_data
 from routers import orderItemRouter, productRouter, restaurantRouter, tableRouter, ticketRouter, userRouter
@@ -22,6 +23,8 @@ import httpx
 app = FastAPI()
 
 CORS_func(app)
+
+create_asset_links(app)
 
 global_engine = start_db()
 
