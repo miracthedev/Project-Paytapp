@@ -1,0 +1,53 @@
+import corbalar from "@/public/assets/menu/corbalar.jpg";
+import mezeler from "@/public/assets/menu/mezeler.jpg";
+import anaYemekler from "@/public/assets/menu/ana-yemekler.jpg";
+import salatalar from "@/public/assets/menu/salatalar.jpg";
+import sicakIcecekler from "@/public/assets/menu/sicak-icecekler.jpg";
+import sogukIcecekler from "@/public/assets/menu/soguk-icecekler.jpg";
+import tatlilar from "@/public/assets/menu/tatlilar.jpg";
+import { StaticImageData } from "next/image";
+
+export type MenuProduct = {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+};
+
+export type MenuCategory = {
+    id: string;
+    name: string;
+    image: string;
+    items: MenuProduct[];
+};
+
+export const MENU_CATEGORIES: MenuCategory[] = [
+    {
+        id: "corbalar",
+        name: "Çorbalar",
+        image: "/assets/menu/corbalar.jpg",
+        items: [
+            { id: "mercimek", name: "Mercimek Çorbası", description: "Tereyağı, limon ve pul biberle servis edilir", price: 120 },
+            { id: "ezogelin", name: "Ezogelin Çorbası", description: "Bulgurlu, naneli klasik lezzet", price: 130 },
+            { id: "iskembe", name: "İşkembe Çorbası", description: "Sarımsaklı sirke ve pul biber ile", price: 160 },
+        ],
+    },
+    {
+        id: "mezeler",
+        name: "Ara Sıcaklar & Mezeler",
+        image: "/assets/menu/mezeler.jpg",
+        items: [
+            { id: "humus", name: "Humus", description: "Nohut ezmesi, tahin, zeytinyağı", price: 150 },
+            { id: "iclikofte", name: "İçli Köfte", description: "Cevizli ve kıymalı, kızarmış (Adet)", price: 90 },
+        ],
+    },
+    {
+        id: "anayemekler",
+        name: "Ana Yemekler",
+        image: "/assets/menu/ana-yemekler.jpg",
+        items: [
+            { id: "adanakebap", name: "Adana Kebap", description: "Zırh kıyması, közlenmiş domates ve biber ile", price: 420 },
+            { id: "tavuksis", name: "Tavuk Şiş", description: "Özel sosla marine edilmiş tavuk göğsü", price: 320 },
+        ],
+    }
+];

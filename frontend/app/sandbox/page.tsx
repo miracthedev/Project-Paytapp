@@ -7,17 +7,13 @@ import { SuccessScreen } from "@/components/order/SuccessScreen";
 import { formatTL, RESTAURANT_NAME, TABLE_LABEL, OrderItem } from "@/lib/models/order-data";
 import { toggleItemLock } from "@/lib/api";
 
-
-
-
-
 const NEXT_PUBLIC_FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL;
 
-
-
-
-// YENİ: İsimden sabit bir renk (hue) üreten fonksiyon.
-// Böylece her polling'de (5 sn) renkler yanıp sönmez, aynı kişiye hep aynı renk gelir.
+/**
+In this function, we simply create a color for a user name.
+This is genius, as username won't change, so do the color!
+It's used when we are mapping the fetched order items.
+*/
 const getUserStyle = (name: string) => {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -29,6 +25,13 @@ const getUserStyle = (name: string) => {
     border: `hsl(${hue}, 60%, 50%)`,
   };
 };
+
+
+/**
+Now this bad boi returns our main billpage
+
+@param selected an useState hook that used for 
+*/
 
 export default function BillPage() {
   const [selected, setSelected] = useState<Record<number, boolean>>({});
@@ -110,24 +113,31 @@ export default function BillPage() {
 
   const shareOf = (id: number, price: number) => customs[id] ?? price / (splits[id] ?? 1);
 
+  // 1. tableTotal Düzeltmesi
   const tableTotal = useMemo(() =>
-    orderItems.reduce((sum, item) => sum + item.sh_price_total, 0),
+    orderItems.reduce((sum, item) => sum + Number(item.sh_price_total), 0),
     [orderItems]);
 
+  // 2. selectedTotal Düzeltmesi
   const selectedTotal = useMemo(() =>
+
     orderItems.filter((item) => {
+
+      // Checks if the current item either paid or locked by someone rn.
       if (item.is_paid || locked[item.id]) return false;
 
-      // API'den veya lokalden başkası tarafından kilitlenmiş mi?
+      // params for checking where these items locked from.
+      //locked_by_session is not null and does not equal to current sessionId, therefore this item must be locked from API(some other guest)
+      //lockedByLocal 
       const lockedByAPI = item.locked_by_session && item.locked_by_session !== sessionId;
       const lockedByLocal = Boolean(lockedByOthersLocal[item.id]);
 
       if (lockedByAPI || lockedByLocal) return false;
 
-      // Kullanıcı manuel seçmişse VEYA API'de bizim session'ımızda kilitliyse
       return selected[item.id] || item.locked_by_session === sessionId;
     }).reduce(
-      (sum, item) => sum + (customs[item.id] ?? item.sh_price_singular / (splits[item.id] ?? 1)),
+      // Burada da Number() kullandık
+      (sum, item) => sum + (customs[item.id] ?? Number(item.sh_price_singular) / (splits[item.id] ?? 1)),
       0
     ),
     [orderItems, selected, splits, customs, locked, lockedByOthersLocal, sessionId]
