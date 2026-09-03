@@ -1,8 +1,8 @@
 
 // TODO
 const NEXT_API_URL = process.env.NEXT_PUBLIC_API_URL;
-const NEXT_API_FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL || "http://127.0.0.1:8000";
-// const NEXT_API_FASTAPI_URL = "http://127.0.0.1:8000";
+const NEXT_PUBLIC_FASTAPI_API_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL;
+// const NEXT_PUBLIC_FASTAPI_API_URL = "http://127.0.0.1:8000";
 
 
 
@@ -16,7 +16,7 @@ export async function loginUser(email: string, password: string) {
     formData.append("password", password);
 
     // 2. Send the POST request to your /login route
-    const response = await fetch(`${NEXT_API_FASTAPI_URL}/login`, {
+    const response = await fetch(`${NEXT_PUBLIC_FASTAPI_API_URL}/login`, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -38,8 +38,19 @@ export async function loginUser(email: string, password: string) {
     return data;
 }
 
-export async function fetchOrderItems() {
+export async function fetchOrderItems(ticketId: string | number) {
+    const response = await fetch(`${NEXT_PUBLIC_FASTAPI_API_URL}/order-items/ticket/${ticketId}`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
 
+    if (!response.ok) {
+        throw new Error(`Failed to fetch order items. Status: ${response.status}`);
+    }
+
+    return response.json();
 }
 
 export async function fetchRestaurants(token?: string) {
@@ -77,44 +88,37 @@ if lock -> true, returns sessionId, which basicall means showing which user lock
 
 ## These variables set to  null if not locked, because it means asking for unlocking this item.
 
-
-
-*/
+/**
+ * Toggles the lock status of a specific order item.
+ * Time calculations and validations are strictly handled by the backend.
+ * 
+ * @param itemId - The ID of the OrderItem
+ * @param sessionId - The unique GuestSession ID (UUID)
+ * @param lock - true to lock, false to unlock
+ */
 export async function toggleItemLock(itemId: string | number, sessionId: string, lock: boolean) {
-    const lockedUntil = lock ? new Date(Date.now() + 3 * 60000).toISOString() : null; //3 mins lock!
-    const lockedBy = lock ? sessionId : null;
-
     // # token
-    // if typeof window is undefined, this means Next.js is on SSR right now, accessing the window results in a crash.
-    // so it accesses the token IF AND ONLY IF SSR finished and window is accessible.
-
+    // SSR koruması ile token alımı
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-    // Initializing a Record (dictionary) with an value,
-    // p.s. KEYS of a Record can only have these types "number", "string", "symbol"
-    // VALUES can have any type.
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
     };
-
 
     // Eğer kullanıcı giriş yapmışsa (Garson/Admin) token ekle
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;
     }
 
-
-    // This snippet will update lock status of specified order item, with "PATCH" method.
-    // May or may not include auth, depending on who made the request (user/admin or guest)
-    const response = await fetch(`${NEXT_API_FASTAPI_URL}/order-items/${itemId}`, {
+    // Dikkat: API rotasının sonuna "/lock" eklendi ve body temizlendi
+    const response = await fetch(`${NEXT_PUBLIC_FASTAPI_API_URL}/order-items/${itemId}/lock`, {
         method: "PATCH",
         headers: headers,
         body: JSON.stringify({
-            locked_by_session: lockedBy,
-            locked_until: lockedUntil
+            guest_id: sessionId,
+            lock: lock
         }),
     });
-
 
     // catcher for errors
     if (!response.ok) {
@@ -127,6 +131,31 @@ export async function toggleItemLock(itemId: string | number, sessionId: string,
         } else {
             throw new Error(`SYSTEM ERR: ${response.status}`);
         }
+    }
+
+    return response.json();
+}
+
+// lib/api.ts içine ekleyin
+export async function addOrderItem(ticketId: number, productId: number, quantity: number, guestId: string) {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_API_URL}/order-items/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            ticket_id: ticketId,
+            product_id: productId,
+            quantity: quantity,
+            guest_id: guestId,
+            note: ""
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        console.error("FastAPI 422 Detayı:", JSON.stringify(errorData, null, 2));
+        throw new Error(`Sipariş eklenemedi: ${response.status}`);
     }
 
     return response.json();

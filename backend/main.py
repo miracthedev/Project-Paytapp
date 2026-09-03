@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends, FastAPI, status,HTTPException
+from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
 
@@ -10,15 +10,20 @@ from auth import get_password_hash, create_access_token, verify_password
 from TOOLs.assetsLinkCreator import create_asset_links
 from models.User import Token, User, UserPost, UserPublic
 from sql import start_db, get_session, create_dummy_data
-from routers import orderItemRouter, productRouter, restaurantRouter, tableRouter, ticketRouter, userRouter
+from routers import (
+    orderItemRouter,
+    productRouter,
+    restaurantRouter,
+    tableRouter,
+    ticketRouter,
+    userRouter,
+)
 
 from models.OrderItem import OrderItem
 from models.Product import Product
 from models.Restaurant import Restaurant
 from models.Ticket import Ticket
 from models.Table import Table
-
-import httpx
 
 app = FastAPI()
 
@@ -41,14 +46,14 @@ app.include_router(orderItemRouter.router)
 app.include_router(productRouter.router)
 ######################################
 
+
 @app.post("/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
-def register_user(
-    user_in: UserPost,
-    session: SessionDeps
-):
+def register_user(user_in: UserPost, session: SessionDeps):
     exists_user = session.exec(select(User).where(User.email == user_in.email))
     if exists_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists!")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists!"
+        )
 
     hashed_pw = get_password_hash(user_in.password)
 
@@ -61,9 +66,15 @@ def register_user(
 
     return db_user
 
+
 @app.post("/login", response_model=Token)
-def login(session: SessionDeps, form_data: Annotated[OAuth2PasswordRequestForm, Depends()],):
-    user = session.exec(select(User).where(User.email == form_data.username.lower())).first()
+def login(
+    session: SessionDeps,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+):
+    user = session.exec(
+        select(User).where(User.email == form_data.username.lower())
+    ).first()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
         # Güvenlik için genel bir hata mesajı dönüyoruz (Username Enumeration saldırılarını önlemek için)
@@ -79,6 +90,7 @@ def login(session: SessionDeps, form_data: Annotated[OAuth2PasswordRequestForm, 
     access_token = create_access_token(data={"sub": user.email})
 
     return Token(access_token=access_token, token_type="bearer")
+
 
 @app.get("/")
 def get_all(session: SessionDeps):
@@ -99,8 +111,9 @@ def get_all(session: SessionDeps):
         print(f"HATA OLUŞTU: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal Error: {str(e)}"
+            detail=f"Internal Error: {str(e)}",
         )
+
 
 @app.delete("/", tags=["☢️"])
 def nuke_db(session: SessionDeps):
@@ -109,8 +122,8 @@ def nuke_db(session: SessionDeps):
     all_products = session.exec(select(Product)).all()
     all_users = session.exec(select(User)).all()
     all_tickets = session.exec(select(Ticket)).all()
-    all_orders = session.exec(select(OrderItem)).all(),
-    
+    all_orders = session.exec(select(OrderItem)).all()
+
     session.delete(all_restaurants)
     session.delete(all_tables)
     session.delete(all_products)
@@ -119,10 +132,4 @@ def nuke_db(session: SessionDeps):
     session.delete(all_orders)
     session.commit()
 
-    return {
-        "result": "☢️'d database"
-    }
-
-@app.get("/poke")
-def pokeballs():
-    pass
+    return {"result": "☢️'d database"}

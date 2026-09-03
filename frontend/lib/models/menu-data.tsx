@@ -8,7 +8,7 @@ import tatlilar from "@/public/assets/menu/tatlilar.jpg";
 import { StaticImageData } from "next/image";
 
 export type MenuProduct = {
-    id: string;
+    id: number;
     name: string;
     description: string;
     price: number;
@@ -27,9 +27,10 @@ export const MENU_CATEGORIES: MenuCategory[] = [
         name: "Çorbalar",
         image: "/assets/menu/corbalar.jpg",
         items: [
-            { id: "mercimek", name: "Mercimek Çorbası", description: "Tereyağı, limon ve pul biberle servis edilir", price: 120 },
-            { id: "ezogelin", name: "Ezogelin Çorbası", description: "Bulgurlu, naneli klasik lezzet", price: 130 },
-            { id: "iskembe", name: "İşkembe Çorbası", description: "Sarımsaklı sirke ve pul biber ile", price: 160 },
+            // 2. DÜZELTME: Ürün ID'leri tam sayıya çevrildi
+            { id: 1, name: "Mercimek Çorbası", description: "Tereyağı, limon ve pul biberle servis edilir", price: 120 },
+            { id: 2, name: "Ezogelin Çorbası", description: "Bulgurlu, naneli klasik lezzet", price: 130 },
+            { id: 3, name: "İşkembe Çorbası", description: "Sarımsaklı sirke ve pul biber ile", price: 160 },
         ],
     },
     {
@@ -37,8 +38,8 @@ export const MENU_CATEGORIES: MenuCategory[] = [
         name: "Ara Sıcaklar & Mezeler",
         image: "/assets/menu/mezeler.jpg",
         items: [
-            { id: "humus", name: "Humus", description: "Nohut ezmesi, tahin, zeytinyağı", price: 150 },
-            { id: "iclikofte", name: "İçli Köfte", description: "Cevizli ve kıymalı, kızarmış (Adet)", price: 90 },
+            { id: 4, name: "Humus", description: "Nohut ezmesi, tahin, zeytinyağı", price: 150 },
+            { id: 5, name: "İçli Köfte", description: "Cevizli ve kıymalı, kızarmış (Adet)", price: 90 },
         ],
     },
     {
@@ -46,8 +47,8 @@ export const MENU_CATEGORIES: MenuCategory[] = [
         name: "Ana Yemekler",
         image: "/assets/menu/ana-yemekler.jpg",
         items: [
-            { id: "adanakebap", name: "Adana Kebap", description: "Zırh kıyması, közlenmiş domates ve biber ile", price: 420 },
-            { id: "tavuksis", name: "Tavuk Şiş", description: "Özel sosla marine edilmiş tavuk göğsü", price: 320 },
+            { id: 6, name: "Adana Kebap", description: "Zırh kıyması, közlenmiş domates ve biber ile", price: 420 },
+            { id: 7, name: "Tavuk Şiş", description: "Özel sosla marine edilmiş tavuk göğsü", price: 320 },
         ],
     }
 ];

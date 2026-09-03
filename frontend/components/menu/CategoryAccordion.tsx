@@ -63,7 +63,7 @@ export function CategoryAccordion({
                                 key={item.id}
                                 item={item}
                                 quantity={quantities[item.id] ?? 0}
-                                onChange={(value) => onQuantityChange(item.id, value)}
+                                onChange={(value) => onQuantityChange(String(item.id), value)}
                             />
                         ))}
                     </ul>

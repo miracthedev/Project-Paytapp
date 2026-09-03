@@ -1,12 +1,13 @@
 "use client";
 
-import React from 'react'
-import BillPage from './sandbox/page';
+import { useRouter } from 'next/router';
+import MenuPage from './(customer)/menu/page';
+import TableRedirectPage from './nfc/[nfc_code]/page';
 
 const MainPage = () => {
+
   return (
     <>
-      <BillPage></BillPage>
     </>
   )
 }

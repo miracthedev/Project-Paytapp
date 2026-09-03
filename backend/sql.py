@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING
+from uuid import UUID
+import uuid
 from sqlalchemy import Engine
 from sqlmodel import SQLModel, Session, create_engine
 
@@ -42,7 +44,7 @@ def create_restaurants(engine: Engine):
         existing_restaurant = session.get(Restaurant, 1)
         if not existing_restaurant:
             restaurants: list[Restaurant] = [
-                Restaurant(name="Los Pollos Harmanos"),
+                Restaurant(name="Meydan Ocakbaşı"),
                 Restaurant(name="Gubate"),
                 Restaurant(name="The Restaurant."),
             ]
@@ -99,6 +101,10 @@ def create_tickets(engine: Engine):
             session.commit()
 
 
+def generate_uuid4():
+    return uuid.uuid4()
+
+
 def create_order_item(engine: Engine):
     with Session(engine) as session:
         existing_item = session.get(OrderItem, 1)
@@ -112,72 +118,79 @@ def create_order_item(engine: Engine):
                 # ==========================================
                 # 1. Tamamen Boş / Kilitlenmemiş
                 OrderItem(
+                    id=None,
                     ticket_id=1,
                     product_id=1,
-                    sh_product_name="Los Pollos Burger",
-                    sh_price_singular=Decimal(250.0),
+                    sh_product_name="Mercimek Çorbası",
+                    sh_price_singular=Decimal("120.0"),
                     is_paid=False,
-                    note="exclude the blue tinted rocks in it",
+                    note="Bol tereyağlı olsun, acı olmasın",
                     quantity=2,
-                    locked_by_session=None,
+                    locked_by_session_id=None,
                     locked_until=None,
                 ),
                 # 2. Şu an Kilitli (Standart Senaryo)
                 OrderItem(
+                    id=None,
                     ticket_id=1,
-                    product_id=3,
-                    sh_product_name="Patates Kızartması",
-                    sh_price_singular=Decimal(80.0),
+                    product_id=6,
+                    sh_product_name="Adana Kebap",
+                    sh_price_singular=Decimal("420.0"),
                     is_paid=False,
-                    locked_by_session="session_user_A",
+                    locked_by_session_id=uuid.uuid4(),
                     locked_until=now + timedelta(minutes=3),
+                    locked_by_name="Misafir 1",
                 ),
                 # 3. Zaten Ödenmiş
                 OrderItem(
+                    id=None,
                     ticket_id=1,
                     product_id=4,
-                    sh_product_name="Kola",
-                    sh_price_singular=Decimal(50.0),
+                    sh_product_name="Humus",
+                    sh_price_singular=Decimal("150.0"),
                     is_paid=True,
-                    paid_by_session="session_user_B",
-                    locked_by_session=None,
+                    paid_by_session_id=uuid.uuid4(),
+                    paid_by_name="Misafir 2",
+                    locked_by_session_id=None,
                     locked_until=None,
                 ),
                 # ==========================================
                 # UÇ DURUMLAR (EDGE CASES) (TICKET 2 - Masa 2)
                 # ==========================================
                 # 4. Süresi Dolmuş Kilit (Terk Edilmiş Sepet)
-                # Backend'in bu ürünün kilidini başkasının almasına izin vermeli.
                 OrderItem(
+                    id=None,
                     ticket_id=2,
                     product_id=5,
-                    sh_product_name="Kıymalı Çibörek",
-                    sh_price_singular=Decimal(120.0),
+                    sh_product_name="İçli Köfte",
+                    sh_price_singular=Decimal("90.0"),
                     is_paid=False,
-                    locked_by_session="session_user_C",
+                    locked_by_session_id=uuid.uuid4(),
                     locked_until=now - timedelta(minutes=10),
+                    locked_by_name="Misafir 3",
                 ),
                 # 5. Eksik Veri: Gelecek tarih var ama Session ID yok!
-                # Backend bunu tamamen "kilitsiz" kabul etmeli.
                 OrderItem(
+                    id=None,
                     ticket_id=2,
-                    product_id=6,
-                    sh_product_name="Ayran",
-                    sh_price_singular=Decimal(40.0),
+                    product_id=7,
+                    sh_product_name="Tavuk Şiş",
+                    sh_price_singular=Decimal("320.0"),
                     is_paid=False,
-                    locked_by_session=None,
+                    locked_by_session_id=None,
                     locked_until=now + timedelta(minutes=5),
                 ),
                 # 6. Eksik Veri: Session ID var ama Tarih yok!
-                # Backend geçersiz kilit sayıp başkasına devredebilmeli.
                 OrderItem(
+                    id=None,
                     ticket_id=2,
-                    product_id=6,
-                    sh_product_name="Ekstra Ayran",
-                    sh_price_singular=Decimal(40.0),
+                    product_id=2,
+                    sh_product_name="Ezogelin Çorbası",
+                    sh_price_singular=Decimal("130.0"),
                     is_paid=False,
-                    locked_by_session="session_user_E",
+                    locked_by_session_id=uuid.uuid4(),
                     locked_until=None,
+                    locked_by_name="Misafir 4",
                 ),
             ]
 
@@ -191,54 +204,55 @@ def create_products(engine: Engine):
         existing_product = session.get(Product, 1)
         if not existing_product:
             products: list[Product] = [
-                # Los Pollos Hermanos (restaurant_id=1) Ürünleri
+                # Meydan Ocakbaşı (restaurant_id=1) Ürünleri
                 Product(
+                    id=1,
                     restaurant_id=1,
-                    name="Los Pollos Burger",
-                    category="Ana Yemek",
-                    price=Decimal(250.0),
-                    image_url=f"{image_host_endpoint}/burger.jpg",
+                    name="Mercimek Çorbası",
+                    category="Çorbalar",
+                    price=Decimal("120.0"),
                 ),
                 Product(
+                    id=2,
                     restaurant_id=1,
-                    name="Çıtır Tavuk Kovası",
-                    category="Ana Yemek",
-                    price=Decimal(350.0),
-                    image_url=f"{image_host_endpoint}/kebap.jpg",
+                    name="Ezogelin Çorbası",
+                    category="Çorbalar",
+                    price=Decimal("130.0"),
                 ),
                 Product(
+                    id=3,
                     restaurant_id=1,
-                    name="Patates Kızartması",
-                    category="Yan Ürün",
-                    price=Decimal(80.0),
-                    image_url=f"{image_host_endpoint}/meze.jpg",
+                    name="İşkembe Çorbası",
+                    category="Çorbalar",
+                    price=Decimal("160.0"),
                 ),
                 Product(
+                    id=4,
                     restaurant_id=1,
-                    name="Kola",
-                    category="İçecek",
-                    price=Decimal(50.0),
-                    image_url=None,
+                    name="Humus",
+                    category="Ara Sıcaklar & Mezeler",
+                    price=Decimal("150.0"),
                 ),
                 Product(
+                    id=5,
                     restaurant_id=1,
-                    name="Çay",
-                    category="İçecek",
-                    price=Decimal(10.0),
-                    image_url=f"{image_host_endpoint}/kahve.jpg",
-                ),
-                # Gubate (restaurant_id=2) Ürünleri
-                Product(
-                    restaurant_id=2,
-                    name="Kıymalı Çibörek",
-                    category="Ana Yemek",
-                    price=Decimal(120.0),
+                    name="İçli Köfte",
+                    category="Ara Sıcaklar & Mezeler",
+                    price=Decimal("90.0"),
                 ),
                 Product(
-                    restaurant_id=2,
-                    name="Ayran",
-                    category="İçecek",
-                    price=Decimal(40.0),
+                    id=6,
+                    restaurant_id=1,
+                    name="Adana Kebap",
+                    category="Ana Yemekler",
+                    price=Decimal("420.0"),
+                ),
+                Product(
+                    id=7,
+                    restaurant_id=1,
+                    name="Tavuk Şiş",
+                    category="Ana Yemekler",
+                    price=Decimal("320.0"),
                 ),
             ]
             session.add_all(products)
