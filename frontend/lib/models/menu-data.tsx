@@ -1,12 +1,3 @@
-import corbalar from "@/public/assets/menu/corbalar.jpg";
-import mezeler from "@/public/assets/menu/mezeler.jpg";
-import anaYemekler from "@/public/assets/menu/ana-yemekler.jpg";
-import salatalar from "@/public/assets/menu/salatalar.jpg";
-import sicakIcecekler from "@/public/assets/menu/sicak-icecekler.jpg";
-import sogukIcecekler from "@/public/assets/menu/soguk-icecekler.jpg";
-import tatlilar from "@/public/assets/menu/tatlilar.jpg";
-import { StaticImageData } from "next/image";
-
 export type MenuProduct = {
     id: number;
     name: string;

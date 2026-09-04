@@ -9,10 +9,12 @@ export type OrderItem = {
     note?: string | null;
     quantity: number;
     image_url?: string | null;
+    intended_payment_method?: string | null; // Backend'e uyumlu eklendi
+    status: string;                          // Backend'e uyumlu eklendi (Örn: "CART", "CONFIRMING", "SENT")
     is_paid: boolean;
-    paid_by_session?: string | null;
+    paid_by_session_id?: string | null;      // "_id" takısı eklendi
     paid_by_name?: string | null;
-    locked_by_session?: string | null;
+    locked_by_session_id?: string | null;    // "_id" takısı eklendi
     locked_by_name?: string | null;
     locked_until?: string | null; // Tarihler JSON'da string (ISO format) olarak gelir
     added_at: string;
@@ -33,6 +35,7 @@ export const ORDER_ITEMS: OrderItem[] = [
         sh_price_singular: 32,
         sh_price_total: 2 * 32,
         image_url: "assets/folk_cat.jpg",
+        status: "CART",
         is_paid: false,
         added_at: new Date().toISOString(),
     },
@@ -46,9 +49,10 @@ export const ORDER_ITEMS: OrderItem[] = [
         sh_price_singular: 420,
         sh_price_total: 1 * 420,
         image_url: "/assets/meze.jpg",
+        status: "CART",
         is_paid: false,
         // TEST: Bu ürün başkası tarafından kilitlenmiş gibi gösterelim
-        locked_by_session: "fake-session-uuid",
+        locked_by_session_id: "fake-session-uuid", // _id eklendi
         locked_by_name: "Müşteri 42",
         locked_until: new Date(Date.now() + 3 * 60000).toISOString(),
         added_at: new Date().toISOString(),
@@ -62,11 +66,12 @@ export const ORDER_ITEMS: OrderItem[] = [
         sh_price_singular: 960,
         sh_price_total: 2 * 960,
         image_url: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&q=80",
+        status: "CART",
         is_paid: false,
         added_at: new Date().toISOString(),
     },
     {
-        id: 6, // "baklava" string'i yerine int ID verdik
+        id: 6,
         ticket_id: 1,
         product_id: 106,
         sh_product_name: "Fıstıklı Baklava",
@@ -74,8 +79,9 @@ export const ORDER_ITEMS: OrderItem[] = [
         sh_price_singular: 260,
         sh_price_total: 1 * 260,
         image_url: "https://images.unsplash.com/photo-1519676867240-f03562e64548?w=500&q=80",
+        status: "CART",
         is_paid: true,
-        paid_by_session: "another-fake-uuid",
+        paid_by_session_id: "another-fake-uuid", // _id eklendi
         paid_by_name: "Ahmet",
         added_at: new Date().toISOString(),
     }

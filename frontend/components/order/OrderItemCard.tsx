@@ -15,17 +15,19 @@ type Props = {
     customAmount: number | null;
     share: number;
     lockedAway: boolean;
+    isGameModeActive?: boolean; // Oyun modunun açık/kapalı durumunu dinler
     onToggle: () => void;
     onSplitChange: (value: number) => void;
     onCustomChange: (value: number | null) => void;
-    onWinDice: () => void;
-    onWinCoin: () => void;
+    onWinDice?: () => void; // Optional yapıldı
+    onWinCoin?: () => void; // Optional yapıldı
     onUnlock: () => void;
+    onStealAttempt?: () => void; // Çalma işlemi başarılı olduğunda çalışacak
 };
 
 export function OrderItemCard({
-    item, selected, split, customAmount, share, lockedAway,
-    onToggle, onSplitChange, onCustomChange, onWinDice, onWinCoin, onUnlock
+    item, selected, split, customAmount, share, lockedAway, isGameModeActive,
+    onToggle, onSplitChange, onCustomChange, onWinDice, onWinCoin, onUnlock, onStealAttempt
 }: Props) {
     const [customOpen, setCustomOpen] = useState(customAmount !== null);
     const [diceOpen, setDiceOpen] = useState(false);
@@ -52,12 +54,31 @@ export function OrderItemCard({
                     </div>
                     <button
                         type="button"
-                        onClick={onUnlock}
-                        className="min-h-11 shrink-0 rounded-xl border-2 border-border bg-background px-4 text-sm font-semibold hover:bg-muted"
+                        onClick={() => {
+                            // Oyun modu açıksa Zar modalını aç, kapalıysa normal unlock çalıştır
+                            if (isGameModeActive) {
+                                setDiceOpen(true);
+                            } else {
+                                onUnlock();
+                            }
+                        }}
+                        className="min-h-11 shrink-0 rounded-xl border-2 border-border bg-background px-4 text-sm font-semibold hover:bg-muted transition-colors"
                     >
-                        Geri al
+                        {isGameModeActive ? "Zarla Çal" : "Geri al"}
                     </button>
                 </div>
+
+                {/* Başkasının ürününü çalmak için atılan zar */}
+                <DiceGame
+                    open={diceOpen}
+                    onOpenChange={setDiceOpen}
+                    itemName={item.sh_product_name}
+                    amount={unitPrice}
+                    onWin={() => {
+                        if (onStealAttempt) onStealAttempt();
+                        else onUnlock(); // Şimdilik fallback
+                    }}
+                />
             </li>
         );
     }
@@ -172,25 +193,28 @@ export function OrderItemCard({
                 )}
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
-                <button
-                    type="button"
-                    onClick={() => setDiceOpen(true)}
-                    className="flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-primary/30 bg-primary/10 text-sm font-bold text-primary hover:bg-primary/20"
-                >
-                    <Dices className="size-4" /> Zar At
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setCoinOpen(true)}
-                    className="flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-border bg-background text-sm font-bold hover:bg-muted"
-                >
-                    <CircleDollarSign className="size-4" /> Yazı Tura
-                </button>
-            </div>
+            {/* Oyun Modu Açıksa Alt Oyun Barını Göster */}
+            {isGameModeActive && (
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
+                    <button
+                        type="button"
+                        onClick={() => setDiceOpen(true)}
+                        className="flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-primary/30 bg-primary/10 text-sm font-bold text-primary hover:bg-primary/20 transition-colors"
+                    >
+                        <Dices className="size-4" /> Zar At
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setCoinOpen(true)}
+                        className="flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-border bg-background text-sm font-bold hover:bg-muted transition-colors"
+                    >
+                        <CircleDollarSign className="size-4" /> Yazı Tura
+                    </button>
+                </div>
+            )}
 
-            <DiceGame open={diceOpen} onOpenChange={setDiceOpen} itemName={item.sh_product_name} amount={unitPrice} onWin={onWinDice} />
-            <CoinFlip open={coinOpen} onOpenChange={setCoinOpen} itemName={item.sh_product_name} amount={unitPrice} onWin={onWinCoin} />
+            <DiceGame open={diceOpen} onOpenChange={setDiceOpen} itemName={item.sh_product_name} amount={unitPrice} onWin={onWinDice || (() => { })} />
+            <CoinFlip open={coinOpen} onOpenChange={setCoinOpen} itemName={item.sh_product_name} amount={unitPrice} onWin={onWinCoin || (() => { })} />
         </li>
     );
 }

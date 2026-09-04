@@ -45,6 +45,8 @@ class OrderItemBase(SQLModel):
     note: Optional[str] = None
     quantity: int = Field(default=1, ge=1, nullable=False)
     image_url: Optional[str] = None
+    intended_payment_method: Optional[str] = None
+    status: str = Field(default="CART")
 
     is_paid: bool = Field(default=False)
     paid_by_session_id: Optional[uuid.UUID] = None
@@ -102,6 +104,7 @@ class OrderItemPost(SQLModel):
     note: Optional[str] = None
     quantity: int = Field(default=1, ge=1, nullable=False)
     guest_id: uuid.UUID
+    status: str = Field(default="CART")
 
 
 class OrderItemPatch(SQLModel):
@@ -127,6 +130,8 @@ class OrderItemPatch(SQLModel):
     locked_by_session: Optional[uuid.UUID] = None
     locked_until: Optional[datetime] = None
     image_url: Optional[str] = None
+    intended_payment_method: Optional[str] = None
+    status: str = Field(default="CART")
 
 
 class OrderItemPublic(OrderItemBase):

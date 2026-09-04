@@ -1,24 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // Router eklendi
+import { useRouter } from "next/navigation";
 import { UtensilsCrossed, ShoppingCart, Loader2 } from "lucide-react";
 import { CategoryAccordion } from "@/components/menu/CategoryAccordion";
 import { MENU_CATEGORIES } from "@/lib/models/menu-data";
-import { addOrderItem } from "@/lib/api"; // API fonksiyonunu import edin
+import { addOrderItem } from "@/lib/api";
+import { toast } from "sonner"; // Sonner import edildi
 
 export default function MenuPage() {
     const router = useRouter();
+    const ws = useRef<WebSocket | null>(null);
+
     const [quantities, setQuantities] = useState<Record<string, number>>({});
     const [openCategory, setOpenCategory] = useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false); // Yükleme durumu eklendi
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Session verilerini tutmak için state
     const [ticketId, setTicketId] = useState<number | null>(null);
     const [guestId, setGuestId] = useState<string | null>(null);
 
-    // Component yüklendiğinde session'dan bilgileri al
     useEffect(() => {
         const storedTicketId = sessionStorage.getItem("ticket_id");
         const storedGuestId = sessionStorage.getItem("guest_id");
@@ -26,6 +27,31 @@ export default function MenuPage() {
         if (storedTicketId) setTicketId(Number(storedTicketId));
         if (storedGuestId) setGuestId(storedGuestId);
     }, []);
+
+    useEffect(() => {
+        if (!ticketId || !guestId) return;
+
+        const apiUrl = process.env.NEXT_PUBLIC_FASTAPI_API_URL || "http://localhost:8000";
+        const wsUrl = apiUrl.replace("http://", "ws://").replace("https://", "wss://");
+
+        ws.current = new WebSocket(`${wsUrl}/ws/${ticketId}/${guestId}`);
+
+        ws.current.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === "ATTACK") {
+                // Sonner error formatı
+                toast.error("⚠️ Kilit Saldırısı!", {
+                    description: `${data.attacker_name}, '${data.product_name}' siparişini senden almaya çalışıyor!`,
+                    duration: 4000,
+                });
+            }
+        };
+
+        return () => {
+            ws.current?.close();
+        };
+    }, [ticketId, guestId]);
 
     const handleQuantityChange = (itemId: string, newQuantity: number) => {
         setQuantities((prev) => {
@@ -40,20 +66,20 @@ export default function MenuPage() {
     const handlePlaceOrder = async () => {
         console.log("Sepetteki anahtarlar (Ürün ID'leri olmalı):", quantities);
         if (!ticketId || !guestId) {
-            alert("Oturum bilgileri eksik, lütfen masadaki QR kodu tekrar okutun.");
+            toast.error("Oturum Hatası", {
+                description: "Oturum bilgileri eksik, lütfen masadaki QR kodu tekrar okutun.",
+            });
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            // Sadece adeti 0'dan büyük olan ürünleri filtrele
             const orderPromises = Object.entries(quantities)
                 .filter(([_, quantity]) => quantity > 0)
                 .map(([productIdStr, quantity]) => {
                     const productId = Number(productIdStr);
 
-                    // Eğer productId bir sayı değilse (NaN ise) uyar ve işlemi iptal et
                     if (isNaN(productId)) {
                         console.error("Geçersiz Ürün ID'si tespit edildi:", productIdStr);
                         throw new Error("Geçersiz ürün kimliği!");
@@ -62,15 +88,20 @@ export default function MenuPage() {
                     return addOrderItem(ticketId, productId, quantity, guestId);
                 });
 
-            // Tüm siparişleri paralel olarak backend'e gönder
             await Promise.all(orderPromises);
 
-            // Başarılı olursa sepeti temizle ve Adisyon sayfasına yönlendir
             setQuantities({});
+
+            toast.success("Başarılı", {
+                description: "Siparişiniz sepete eklendi.",
+            });
+
             router.push("/billing");
         } catch (error) {
             console.error("Sipariş hatası:", error);
-            alert("Siparişiniz iletilemedi, lütfen garsona haber verin.");
+            toast.error("Hata", {
+                description: "Siparişiniz iletilemedi, lütfen garsona haber verin.",
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -80,7 +111,6 @@ export default function MenuPage() {
 
     return (
         <div className="min-h-screen bg-background pb-32">
-            {/* Header Kısmı (Aynı Kalıyor) */}
             <header className="sticky top-0 z-20 bg-primary px-5 py-4 text-primary-foreground shadow-md">
                 <div className="flex items-center gap-3">
                     <div className="flex size-12 items-center justify-center rounded-xl bg-primary-foreground/15">
@@ -99,7 +129,6 @@ export default function MenuPage() {
             <main className="px-5 pt-6">
                 <div className="mb-6 flex items-center justify-between">
                     <h1 className="text-3xl font-extrabold leading-tight text-foreground">Menü</h1>
-                    {/* DÜZELTME: href="/" yerine href="/billing" yapıldı */}
                     <Link
                         href="/billing"
                         className="text-sm font-bold text-primary underline underline-offset-4"
@@ -122,7 +151,6 @@ export default function MenuPage() {
                 </ul>
             </main>
 
-            {/* DÜZELTME: Floating Button artık form gönderimi yapıyor */}
             {totalSelectedItems > 0 && (
                 <div className="fixed bottom-6 right-6 z-30">
                     <button

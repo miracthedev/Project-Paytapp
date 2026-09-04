@@ -2,14 +2,18 @@ from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
+
+from websocketss import manager
 
 from auth.cors import CORS_func
 from auth import get_password_hash, create_access_token, verify_password
 
 from TOOLs.assetsLinkCreator import create_asset_links
-from models.User import Token, User, UserPost, UserPublic
+from auth.auth import require_role
+from models.User import Token, User, UserPost, UserPublic, UserRoles
 from sql import start_db, get_session, create_dummy_data
+from websocketss import router as websocket_router
 from routers import (
     orderItemRouter,
     productRouter,
@@ -37,19 +41,22 @@ create_dummy_data(global_engine)
 
 SessionDeps = Annotated[Session, Depends(get_session)]
 
-########### ADDING ROUTERS ###########
+AdminDeps = Annotated[UserRoles, Depends(require_role(UserRoles.ADMIN))]
+
+########### ROUTERLARIMIZ ###########
 app.include_router(restaurantRouter.router)
 app.include_router(userRouter.router)
 app.include_router(tableRouter.router)
 app.include_router(ticketRouter.router)
 app.include_router(orderItemRouter.router)
 app.include_router(productRouter.router)
+app.include_router(websocket_router)
 ######################################
 
 
 @app.post("/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 def register_user(user_in: UserPost, session: SessionDeps):
-    exists_user = session.exec(select(User).where(User.email == user_in.email))
+    exists_user = session.exec(select(User).where(User.email == user_in.email)).first()
     if exists_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists!"
@@ -77,7 +84,6 @@ def login(
     ).first()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
-        # Güvenlik için genel bir hata mesajı dönüyoruz (Username Enumeration saldırılarını önlemek için)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -116,20 +122,22 @@ def get_all(session: SessionDeps):
 
 
 @app.delete("/", tags=["☢️"])
-def nuke_db(session: SessionDeps):
-    all_restaurants = session.exec(select(Restaurant)).all()
-    all_tables = session.exec(select(Table)).all()
-    all_products = session.exec(select(Product)).all()
-    all_users = session.exec(select(User)).all()
-    all_tickets = session.exec(select(Ticket)).all()
-    all_orders = session.exec(select(OrderItem)).all()
+async def nuke_db(session: SessionDeps, admin_deps: AdminDeps):
+    try:
 
-    session.delete(all_restaurants)
-    session.delete(all_tables)
-    session.delete(all_products)
-    session.delete(all_users)
-    session.delete(all_tickets)
-    session.delete(all_orders)
-    session.commit()
+        await manager.disconnect_all()
+
+        session.exec(delete(OrderItem))
+        session.exec(delete(Ticket))
+        session.exec(delete(Table))
+        session.exec(delete(Product))
+        session.exec(delete(Restaurant))
+        session.exec(delete(User))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="error occurred:" + str(e)
+        )
 
     return {"result": "☢️'d database"}

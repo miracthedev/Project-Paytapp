@@ -17,6 +17,7 @@ class TicketBase(SQLModel):
     table_id: Optional[int] = Field(foreign_key="table.id")
     is_active: Optional[bool] = Field(default=True)
     waiter_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    confirmation_started_at: Optional[datetime] = None
 
 
 # 2. Veritabanı Modeli (Table)
@@ -53,6 +54,7 @@ class TicketPatch(SQLModel):
     table_id: Optional[int] = None
     is_active: Optional[bool] = None
     closed_at: Optional[datetime] = None
+    confirmation_started_at: Optional[datetime] = None
 
 
 # 5. Çıktı Modeli (Public)
@@ -60,6 +62,7 @@ class TicketPublic(TicketBase):
     id: int
     opened_at: datetime
     closed_at: Optional[datetime] = None
+    confirmation_started_at: Optional[datetime] = None
 
 
 # 6. Genişletilmiş Çıktı Modeli

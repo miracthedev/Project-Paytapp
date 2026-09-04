@@ -22,6 +22,7 @@ class GuestSessionBase(SQLModel):
 
     ticket_id: Optional[int] = Field(foreign_key="ticket.id")
     guest_name: Optional[str] = Field(default="Misafir")
+    is_ready_for_order: bool = Field(default=False)
 
 
 # Now, this class will actually saved for database. It inherits from Base guest session.
@@ -68,6 +69,7 @@ class GuestSessionPost(SQLModel):
 
     ticket_id: int
     guest_name: str = "Misafir"
+    is_ready_for_order: bool = Field(default=False)
 
 
 # Patch class (update). params are optional, as maybe user won't change it at all!.
@@ -84,6 +86,7 @@ class GuestSessionPatch(SQLModel):
 
     guest_name: Optional[str]
     is_active: Optional[bool]
+    is_ready_for_order: bool = Field(default=False)
 
 
 # Return class.
